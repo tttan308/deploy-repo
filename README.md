@@ -4,10 +4,10 @@
 
 ```bash
 # 1. Clone the repository.
-git clone git@gitlab.geekup.io:gu_alia/alia-professional/alia-professional-deployment.git
+git clone 
 
 # 2. Enter your alia-professional-be folder.
-cd alia-professional-deployment
+cd 
 
 # 3. Change Webserver & SSL config
 - webserver/nginx/app.conf: Replace <domain> -> domain deployment

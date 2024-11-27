@@ -3,7 +3,7 @@ set -e
 
 backend_service=backend   # Tên service backend
 frontend_service=frontend # Tên service frontend
-migration_command="npm run migrate:prod" # Lệnh chạy migration
+migration_command="npm run migrate:run:prod" # Lệnh chạy migration
 
 deploy() {
   if [ -z "$1" ]; then
@@ -41,6 +41,7 @@ deploy() {
   # Kiểm tra cổng dịch vụ backend (3030)
   echo "Checking backend on port 3030..."
   backend_container_ip=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $backend_container_id)
+  echo $backend_container_ip
   if ! nc -z $backend_container_ip 3030; then
     echo "Backend is not accepting connections on port 3030!"
     exit 1
