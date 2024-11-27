@@ -1,68 +1,72 @@
 #!/bin/bash
 set -e
 
-web_server_name=webserver # service_name of webserver
-service_name=backend      # service_name deploy
-
-reload_nginx() {
-  nginx_id=$(docker ps -f name=$web_server_name -q | tail -n1)
-  docker exec $nginx_id nginx -s reload
-}
+backend_service=backend   # Tên service backend
+frontend_service=frontend # Tên service frontend
+migration_command="npm run migrate:prod" # Lệnh chạy migration
 
 deploy() {
-
   if [ -z "$1" ]; then
-    # Get version
+    # Yêu cầu nhập version
     read -r -p "Enter version you want to deploy: " version
   else
     version=$1
   fi
 
-  # Check if the input is empty
+  # Kiểm tra version có hợp lệ không
   if [ -z "$version" ]; then
-    echo "You did not enter a version."
+    echo "No version provided."
     exit 1
   fi
 
   export VERSION=$version
+  echo "Deploying version $version..."
 
-  echo "Start deploy backend...."
-  old_container_id=$(docker ps -f name=$service_name -q | tail -n1)
+  # Chạy migration trước cho backend
+  echo "Running backend migrations..."
+  docker compose run --rm $backend_service $migration_command
 
-  # bring a new container online, running new code
-  # (nginx continues routing to the old container only)
-  echo "Create new container"
- 
-  docker compose up -d --no-deps --scale $service_name=2 --no-recreate $service_name 
- 
-  # wait for new container to be available
-  echo "Health check new container"
-  new_container_id=$(docker ps -f name=$service_name -q | head -n1)
-  new_container_ip=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $new_container_id)
-  curl --silent --include --retry-connrefused --retry 30 --retry-delay 1 --fail http://$new_container_ip:3000/v1/health ||
-    (echo "Deploy fail. Cannot start container!!!" && 
-      docker stop $new_container_id &&
-      docker rm $new_container_id &&
-      docker compose up -d --no-deps --scale $service_name=1 --no-recreate $service_name &&
-      exit 111)
+  # Deploy backend
+  echo "Deploying backend..."
+  docker compose up -d --no-deps --scale $backend_service=1 --no-recreate $backend_service
 
-  echo -e "\nStart routing requests to the new container (as well as the old)"
-  reload_nginx
+  # Kiểm tra container backend đang chạy
+  echo "Checking backend container..."
+  backend_container_id=$(docker ps -f name=$backend_service -q | head -n1)
+  if [ -z "$backend_container_id" ]; then
+    echo "Backend container failed to start!"
+    exit 1
+  fi
 
-  echo "Removing old contaner"
-  docker stop $old_container_id
-  docker rm $old_container_id
-  echo "Removed old container"
+  # Kiểm tra cổng dịch vụ backend (3030)
+  echo "Checking backend on port 3030..."
+  backend_container_ip=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $backend_container_id)
+  if ! nc -z $backend_container_ip 3030; then
+    echo "Backend is not accepting connections on port 3030!"
+    exit 1
+  fi
+  echo "Backend deployed successfully."
 
-  echo "Change scale set to 1"
-  docker compose up -d --no-deps --scale $service_name=1 --no-recreate $service_name
-  
-  echo "Stop routing requests to the old container"
-  reload_nginx
-  echo "Deploy backend successfully!!!"
+  # Deploy frontend
+  echo "Deploying frontend..."
+  docker compose up -d --no-deps --scale $frontend_service=1 --no-recreate $frontend_service
 
-  echo "Clean up image"
-  docker image prune -a -f 
+  # Kiểm tra container frontend đang chạy
+  echo "Checking frontend container..."
+  frontend_container_id=$(docker ps -f name=$frontend_service -q | head -n1)
+  if [ -z "$frontend_container_id" ]; then
+    echo "Frontend container failed to start!"
+    exit 1
+  fi
+
+  # Kiểm tra cổng dịch vụ frontend (3000)
+  echo "Checking frontend on port 3000..."
+  frontend_container_ip=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $frontend_container_id)
+  if ! nc -z $frontend_container_ip 3000; then
+    echo "Frontend is not accepting connections on port 3000!"
+    exit 1
+  fi
+  echo "Frontend deployed successfully."
 }
 
 deploy $1

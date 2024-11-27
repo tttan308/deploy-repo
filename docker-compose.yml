@@ -2,27 +2,20 @@ version: "3.8"
 
 services:
   frontend:
-    image: frontend:latest
-    build:
-      context: ./tp-frontend
-      dockerfile: Dockerfile
+    image: tp-frontend:latest
     env_file:
-      - ./tp-frontend/.env
+      - .env
     ports:
       - 3000:3000
     networks:
       - ticket-plus
     depends_on:
       - backend
-      - postgres
 
   backend:
-    image: backend:latest
-    build:
-      context: ./tp-backend
-      dockerfile: Dockerfile
+    image: tp-backend:latest
     env_file:
-      - ./tp-backend/.env
+      - .env
     links:
       - postgres
     ports:
@@ -39,7 +32,7 @@ services:
     volumes:
       - /database:/var/lib/postgresql/data
     env_file:
-      - .backend.env
+      - .env
     networks:
       - ticket-plus
     ports:
@@ -48,41 +41,29 @@ services:
   adminer:
     image: adminer:4.8.1
     container_name: adminer
-    restart: always
-    depends_on:
-      - postgres
-    networks:
-      - ticket-plus
     ports:
       - 8080:8080
+    env_file:
+      - .env
+    networks:
+      - ticket-plus
 
   webserver:
     image: nginx:1.27.0-alpine
     container_name: webserver
     restart: unless-stopped
     depends_on:
-      - backend
+      - frontend
     ports:
       - 80:80
       - 443:443
-    command: '/bin/sh -c ''while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'''
     volumes:
       - ./webserver/nginx/app.conf:/etc/nginx/conf.d/app.conf:ro
       - ./webserver/certbot/conf:/etc/letsencrypt
       - ./webserver/certbot/www:/var/www/certbot
     networks:
       - ticket-plus
-
-  ssl:
-    image: certbot/certbot:v2.10.0
-    container_name: ssl
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-    volumes:
-      - ./webserver/certbot/conf:/etc/letsencrypt
-      - ./webserver/certbot/www:/var/www/certbot
-    networks:
-      - ticket-plus
-
+      
 networks:
   ticket-plus:
     driver: bridge
