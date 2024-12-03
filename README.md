@@ -13,9 +13,6 @@ cd
 
 # 4. Run first time.
 make bootstrap
-
-# 5. Setup SSL
-sudo bash webserver/init-letsencrypt.sh
 ```
 
 ## How to deploy

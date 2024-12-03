@@ -1,17 +1,17 @@
 services:
   frontend:
-    image: tantran308/tp-backend:latest
+    image: 
     env_file:
       - .env
     ports:
       - 3000:3000
     networks:
-      - ticket-plus
+      - <network-name>
     depends_on:
       - backend
 
   backend:
-    image: tantran308/tp-backend:latest
+    image: 
     env_file:
       - .env
     links:
@@ -19,7 +19,7 @@ services:
     ports:
       - 3030:3030
     networks:
-      - ticket-plus
+      - <network-name>
     depends_on:
       - postgres
     restart: always
@@ -35,7 +35,7 @@ services:
     env_file:
       - .env
     networks:
-      - ticket-plus
+      - <network-name>
 
   adminer:
     image: adminer:4.8.1
@@ -45,7 +45,7 @@ services:
     env_file:
       - .env
     networks:
-      - ticket-plus
+      - <network-name>
 
   webserver:
     image: nginx:1.27.0-alpine
@@ -61,7 +61,7 @@ services:
       - ./webserver/certbot/conf:/etc/letsencrypt/:ro
       - ./webserver/certbot/www:/var/www/certbot/:ro
     networks:
-      - ticket-plus
+      - <network-name>
     
   certbot:
     image: certbot/certbot:v2.10.0
@@ -70,9 +70,9 @@ services:
       - ./webserver/certbot/conf:/etc/letsencrypt/:rw
       - ./webserver/certbot/www:/var/www/certbot/:rw
     networks:
-      - ticket-plus
+      - <network-name>
   
 networks:
-  ticket-plus:
+  <network-name>:
     driver: bridge
     
